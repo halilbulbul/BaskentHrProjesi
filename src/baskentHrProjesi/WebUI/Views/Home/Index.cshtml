@@ -1,0 +1,982 @@
+﻿@{
+    ViewData["Title"] = "Anasayfa";
+    ViewData["Subtitle"] = "İnsan Kaynakları yönetim paneli özeti";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/vendors/iconly/bold.css" />
+
+    <style>
+        /* Departman trend grafiği */
+        .trend-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 260px;
+        }
+
+        .trend-day {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 6px;
+        }
+
+        .trend-group {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            height: 200px;
+        }
+
+        .trend-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .trend-bar {
+            width: 26px;
+            border-radius: 4px;
+        }
+
+        /* İSTENEN RENKLER */
+        .trend-present {
+            background-color: #198754;
+        }
+        /* Mevcut = Yeşil */
+        .trend-leave {
+            background-color: #0d6efd;
+        }
+        /* İzinli = Mavi */
+        .trend-absent {
+            background-color: #dc3545;
+        }
+        /* Devamsız = Kırmızı */
+        .trend-late {
+            background-color: #ffc107;
+        }
+        /* Geç Gelen = Sarı */
+
+        .trend-value {
+            margin-top: 3px;
+            font-size: .7rem;
+            color: #6c757d;
+            white-space: nowrap;
+        }
+
+        .trend-label {
+            margin-top: 6px;
+            font-size: .75rem;
+            color: #6c757d;
+            text-align: center;
+        }
+
+        .trend-legend {
+            margin-top: 12px;
+            font-size: .8rem;
+            color: #6c757d;
+        }
+
+            .trend-legend span {
+                margin-right: 16px;
+            }
+
+            .trend-legend i {
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                border-radius: 2px;
+                margin-right: 4px;
+                vertical-align: middle;
+            }
+
+            .trend-legend .lg-present i {
+                background-color: #198754;
+            }
+
+            .trend-legend .lg-absent i {
+                background-color: #dc3545;
+            }
+
+            .trend-legend .lg-leave i {
+                background-color: #0d6efd;
+            }
+
+            .trend-legend .lg-late i {
+                background-color: #ffc107;
+            }
+
+        /* BUGÜN DURUM KARTI */
+        #card-today-status {
+            border-radius: 18px;
+            box-shadow: 0 8px 20px rgba(15,23,42,.08);
+        }
+
+            #card-today-status .card-header {
+                border-bottom: 0;
+                padding-bottom: .35rem;
+            }
+
+            #card-today-status h4 {
+                font-size: 1rem;
+                font-weight: 700;
+            }
+
+        .today-status-section {
+            padding: .75rem 0;
+            border-bottom: 1px dashed #e9ecef;
+        }
+
+            .today-status-section:last-child {
+                border-bottom: 0;
+            }
+
+        .today-status-title {
+            font-size: .9rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .today-status-count {
+            min-width: 38px;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 600;
+            text-align: center;
+            padding: .15rem .55rem;
+        }
+
+        .today-status-list {
+            max-height: 190px;
+            overflow-y: auto;
+            margin-top: .35rem;
+        }
+
+            .today-status-list::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .today-status-list::-webkit-scrollbar-thumb {
+                background-color: #ced4da;
+                border-radius: 999px;
+            }
+
+        .today-status-item {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .1rem 0;
+            font-size: .85rem;
+        }
+
+            .today-status-item span {
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+
+        .today-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+            /* İSTENEN RENKLER */
+            .today-status-dot.present {
+                background-color: #198754;
+            }
+            /* Mevcut */
+            .today-status-dot.absent {
+                background-color: #dc3545;
+            }
+            /* Devamsız */
+            .today-status-dot.leave {
+                background-color: #0d6efd;
+            }
+            /* İzinli */
+            .today-status-dot.late {
+                background-color: #ffc107;
+            }
+        /* Geç Gelen (ileride liste eklenirse) */
+
+        .today-status-empty {
+            font-size: .8rem;
+            color: #adb5bd;
+        }
+
+        .today-status-section:hover .today-status-title {
+            color: #0d6efd;
+            transition: color .15s ease-in-out;
+        }
+
+        /* ===== Dashboard Bölüm Ayırıcı ===== */
+        .dashboard-section {
+            border: 1px solid rgba(15,23,42,.06);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 8px 20px rgba(15,23,42,.06);
+            padding: 16px 16px 6px 16px;
+            margin-bottom: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+            .dashboard-section.company {
+                border-left: 6px solid #6f42c1;
+                background: linear-gradient(180deg, rgba(111,66,193,.06), rgba(255,255,255,0) 45%), #fff;
+            }
+
+            .dashboard-section.mine {
+                border-left: 6px solid #0d6efd;
+                background: linear-gradient(180deg, rgba(13,110,253,.06), rgba(255,255,255,0) 45%), #fff;
+            }
+
+        .section-block {
+            border: 1px dashed rgba(15,23,42,.14);
+            border-radius: 16px;
+            padding: 14px 14px 6px 14px;
+            margin-bottom: 14px;
+            background: rgba(15,23,42,.015);
+        }
+
+            .section-block.block-summary {
+                background: rgba(15,23,42,.015);
+            }
+
+            .section-block.block-chart {
+                background: rgba(15,23,42,.01);
+            }
+
+            .section-block.block-monthly {
+                background: rgba(15,23,42,.012);
+            }
+
+            .section-block.block-table {
+                background: rgba(15,23,42,.01);
+            }
+
+        .section-block-title {
+            font-size: .75rem;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin: 0 0 10px 2px;
+        }
+
+        .dashboard-section-title {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            margin-bottom: 12px;
+        }
+
+            .dashboard-section-title .title {
+                font-size: .95rem;
+                font-weight: 800;
+                color: #0f172a;
+                margin: 0;
+                line-height: 1;
+            }
+
+            .dashboard-section-title .badge-soft {
+                font-size: .72rem;
+                font-weight: 800;
+                padding: .22rem .65rem;
+                border-radius: 999px;
+                background: rgba(15,23,42,.06);
+                color: #475569;
+                white-space: nowrap;
+            }
+
+            .dashboard-section-title .line {
+                flex: 1;
+                height: 1px;
+                background: linear-gradient(90deg, rgba(15,23,42,.18), rgba(15,23,42,0));
+            }
+
+        .dashboard-section .row:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+}
+
+@section PageHeader {
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-6 order-md-1 order-last">
+                <h3>İnsan Kaynakları Yönetim Paneli</h3>
+                <p class="text-subtitle text-muted">
+                    Sistem genel durumunu ve özet istatistikleri görüntüleyin.
+                </p>
+            </div>
+            <div class="col-12 col-md-6 order-md-2 order-first">
+                <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a asp-controller="Home" asp-action="Index">Anasayfa</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">Genel Bakış</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+}
+
+<section class="row">
+    <div class="col-12 col-lg-9">
+
+        <!-- ŞİRKET GENEL (ADMIN) -->
+        <div class="dashboard-section company admin-only" id="section-company">
+            <div class="dashboard-section-title">
+                <h6 class="title mb-0">
+                    <i class="iconly-boldShow"></i> Şirket Genel Görünüm
+                </h6>
+                <span class="badge-soft" id="badge-company-period">-</span>
+                <span class="line"></span>
+            </div>
+
+            <div class="section-block block-summary admin-only" id="block-company-summary">
+                <div class="section-block-title">Özet</div>
+
+                <!-- ADMIN: ÖZET KARTLARI -->
+                <div class="row admin-only" id="row-admin-summary">
+                    <div class="col-6 col-lg-3 col-md-6">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon purple">
+                                            <i class="iconly-boldShow"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">Aktif Personel</h6>
+                                        <h6 class="font-extrabold mb-0" id="stat-activeEmployees">-</h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3 col-md-6">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon blue">
+                                            <i class="iconly-boldProfile"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">İzin Talebi (Açık)</h6>
+                                        <h6 class="font-extrabold mb-0" id="stat-openLeaves">-</h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3 col-md-6">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon green">
+                                            <i class="iconly-boldAdd-User"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">Yeni Personeller</h6>
+                                        <h6 class="font-extrabold mb-0" id="stat-newHires">-</h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-3 col-md-6">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon red">
+                                            <i class="iconly-boldTime-Circle"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">Geç Gelenler</h6>
+                                        <h6 class="font-extrabold mb-0" id="stat-lateEmployees">-</h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-block block-chart admin-only" id="block-company-chart">
+                <div class="section-block-title">Grafik</div>
+
+                <!-- ADMIN: DEPARTMAN BAZLI GRAFİK -->
+                <div class="row admin-only" id="row-department-trend">
+                    <div class="col-12">
+                        <div class="card" id="card-department-trend" style="width:100%; height:380px;">
+                            <div class="card-header">
+                                <h4>Departman Bazlı Puantaj Özeti</h4>
+                            </div>
+                            <div class="card-body">
+                                <div id="trend-chart" class="trend-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BENİM PANELİM (HERKES) -->
+        <div class="dashboard-section mine" id="section-mine">
+            <div class="dashboard-section-title">
+                <h6 class="title mb-0">
+                    <i class="iconly-boldProfile"></i> Benim Panelim
+                </h6>
+                <span class="badge-soft" id="badge-mine-period">-</span>
+                <span class="line"></span>
+            </div>
+
+            <div class="section-block block-monthly" id="block-mine-monthly">
+                <div class="section-block-title">Aylık Özet</div>
+
+                <!-- HERKES: AYLIK ÖZET KARTLARI -->
+                <div class="row" id="row-my-monthly-summary">
+                    <div class="col-6 col-lg-4 col-md-4">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon green">
+                                            <i class="iconly-boldTime-Circle"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">Fazla Mesai</h6>
+                                        <h6 class="font-extrabold mb-0">
+                                            <span id="my-overtime-minutes">-</span> dk
+                                        </h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-4 col-md-4">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon red">
+                                            <i class="iconly-boldTime-Circle"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">Geç Gelme</h6>
+                                        <h6 class="font-extrabold mb-0">
+                                            <span id="my-late-minutes">-</span> dk
+                                        </h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-lg-4 col-md-4">
+                        <div class="card">
+                            <div class="card-body px-3 py-4-5">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stats-icon blue">
+                                            <i class="iconly-boldCalendar"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h6 class="text-muted font-semibold">Kullanılan İzin</h6>
+                                        <h6 class="font-extrabold mb-0">
+                                            <span id="my-used-leave-days">-</span> gün
+                                        </h6>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-block block-table" id="block-mine-table">
+                <div class="section-block-title">Günlük Kayıtlar</div>
+
+                <!-- HERKES: SON İŞLEMLER (GÜNLÜK GRUPLU) -->
+                <div class="row">
+                    <div class="col-12 col-xl-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>Puantaj Hareketleriniz</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-lg">
+                                        <thead>
+                                            <tr>
+                                                <th>Personel</th>
+                                                <th>Tarih</th>
+                                                <th>Giriş</th>
+                                                <th>Çıkış</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="lastTransactionsBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="col-12 col-lg-3">
+        <!-- ADMIN: BUGÜN DURUM -->
+        <div class="card admin-only" id="card-today-status">
+            <div class="card-header">
+                <h4>Bugün Durum</h4>
+            </div>
+            <div class="card-content pb-4 px-4">
+                <div class="today-status-section">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="today-status-title">Mevcut</span>
+                        <span class="badge bg-success today-status-count" id="today-present-count">-</span>
+                    </div>
+                    <ul class="list-unstyled mb-1 small today-status-list" id="today-present-list"></ul>
+                </div>
+
+                <div class="today-status-section">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="today-status-title">Devamsız</span>
+                        <span class="badge bg-danger today-status-count" id="today-absent-count">-</span>
+                    </div>
+                    <ul class="list-unstyled mb-1 small today-status-list" id="today-absent-list"></ul>
+                </div>
+
+                <div class="today-status-section">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="today-status-title">İzinde</span>
+                        <span class="badge bg-primary today-status-count" id="today-leave-count">-</span>
+                    </div>
+                    <ul class="list-unstyled mb-1 small today-status-list" id="today-leave-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- HERKES: DOĞUM GÜNÜ YAKLAŞANLAR -->
+        <div class="card" id="card-upcoming-birthdays">
+            <div class="card-header">
+                <h4>Bu Ay Doğanlar</h4>
+            </div>
+            <div class="card-content pb-4 px-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-warning" id="upcoming-birthday-count">-</span>
+                </div>
+                <ul class="list-unstyled mb-1 small today-status-list" id="upcoming-birthday-list"></ul>
+            </div>
+        </div>
+
+        <!-- ADMIN: DEPARTMAN DAĞILIMI -->
+        <div class="card admin-only" id="card-department-distribution">
+            <div class="card-header">
+                <h4>Departman Bazlı Personel Sayısı</h4>
+            </div>
+            <div class="card-body" id="departmentDistributionList"></div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+    <script>
+        function setPeriodBadges() {
+            const d = new Date();
+
+            const daily = new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "long", year: "numeric" }).format(d);
+
+            let monthYear = new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" }).format(d);
+            monthYear = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
+
+            const elCompany = document.getElementById("badge-company-period");
+            if (elCompany) elCompany.textContent = `Günlük (${daily})`;
+
+            const elMine = document.getElementById("badge-mine-period");
+            if (elMine) elMine.textContent = `Aylık (${monthYear})`;
+        }
+
+        function formatTime(value) {
+            const d = new Date(value);
+            return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+        }
+
+        function formatDate(value) {
+            const d = new Date(value);
+            return d.toLocaleDateString("tr-TR", { year: "numeric", month: "2-digit", day: "2-digit" });
+        }
+
+        function toKeyDate(dt) {
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, "0");
+            const d = String(dt.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+        }
+
+        async function safeJsonFetch(url, defaultValue) {
+            try {
+                const resp = await fetch(url, { headers: { "Accept": "application/json" } });
+
+                if (!resp.ok) {
+                    console.warn("Fetch HTTP " + resp.status + " ->", url);
+                    return defaultValue;
+                }
+
+                const ct = resp.headers.get("content-type") || "";
+                if (!ct.includes("application/json")) {
+                    console.warn("Non-JSON response ->", url, "content-type:", ct);
+                    return defaultValue;
+                }
+
+                return await resp.json();
+            } catch (err) {
+                console.warn("Fetch error ->", url, err);
+                return defaultValue;
+            }
+        }
+
+        function renderDepartmentDistributionList(deptList) {
+            var container = document.getElementById("departmentDistributionList");
+            if (!container) return;
+
+            container.innerHTML = "";
+
+            if (!deptList || deptList.length === 0) {
+                container.innerHTML = '<p class="text-muted mb-0">Veri bulunamadı.</p>';
+                return;
+            }
+
+            var max = deptList.reduce(function (m, d) {
+                return Math.max(m, d.count || 0);
+            }, 1);
+
+            deptList.forEach(function (d) {
+                var count = Number(d.count) || 0;
+                var pct = Math.round(count * 100 / max);
+
+                var row = document.createElement("div");
+                row.className = "mb-2";
+
+                row.innerHTML =
+                    '<div class="d-flex justify-content-between align-items-center mb-1">' +
+                    '<span>' + d.name + '</span>' +
+                    '<span class="fw-bold">' + count + '</span>' +
+                    '</div>' +
+                    '<div class="progress" style="height: 6px;">' +
+                    '<div class="progress-bar" role="progressbar" style="width: ' + pct + '%;" ' +
+                    'aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100"></div>' +
+                    '</div>';
+
+                container.appendChild(row);
+            });
+        }
+
+        function renderDepartmentDailyChart(depData) {
+            var wrapper = document.getElementById("trend-chart-wrapper");
+            var container = document.getElementById("trend-chart");
+            if (!container) return;
+
+            container.innerHTML = "";
+
+            if (!depData || depData.length === 0) {
+                container.innerHTML = '<p class="text-muted mb-0">Veri bulunamadı.</p>';
+                return;
+            }
+
+            var chart = echarts.getInstanceByDom(container);
+            if (chart) chart.dispose();
+
+            var depOrder = [];
+            var depMap = {};
+
+            depData.forEach(function (d) {
+                var name = d.departmentName;
+                if (!depMap[name]) {
+                    depMap[name] = { present: 0, absent: 0, leave: 0, late: 0 };
+                    depOrder.push(name);
+                }
+                depMap[name].present += Number(d.present) || 0;
+                depMap[name].absent += Number(d.absent) || 0;
+                depMap[name].leave += Number(d.leave) || 0;
+                depMap[name].late += Number(d.late) || 0;
+            });
+
+            var labels = depOrder;
+            var presentData = depOrder.map(function (n) { return depMap[n].present; });
+            var absentData = depOrder.map(function (n) { return depMap[n].absent; });
+            var leaveData = depOrder.map(function (n) { return depMap[n].leave; });
+            var lateData = depOrder.map(function (n) { return depMap[n].late; });
+
+            if (wrapper) {
+                var baseWidth = labels.length * 80;
+                container.style.width = Math.max(baseWidth, wrapper.clientWidth || 0) + "px";
+            }
+
+            chart = echarts.init(container);
+
+            var labelOption = {
+                show: true,
+                position: 'top',
+                distance: 15,
+                align: 'left',
+                verticalAlign: 'middle',
+                rotate: 0,
+                fontSize: 15,
+                rich: { name: {} }
+            };
+
+            var option = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['Mevcut', 'Devamsız', 'İzinde', 'Geç Gelen'], textStyle: { fontSize: 15 } },
+                grid: { left: 0, right: 0, top: 60, bottom: 0, containLabel: true },
+                xAxis: [{
+                    type: 'category',
+                    axisTick: { show: false },
+                    axisLabel: { fontSize: 18, rotate: 0 },
+                    data: labels
+                }],
+                yAxis: [{ type: 'value', axisLabel: { fontSize: 12 } }],
+                series: [
+                    { name: 'Mevcut',    type: 'bar', barGap: 0, label: labelOption, data: presentData, itemStyle: { color: '#198754' } }, // yeşil
+                    { name: 'Devamsız',  type: 'bar',             label: labelOption, data: absentData,  itemStyle: { color: '#dc3545' } }, // kırmızı
+                    { name: 'İzinde',    type: 'bar',             label: labelOption, data: leaveData,   itemStyle: { color: '#0d6efd' } }, // mavi
+                    { name: 'Geç Gelen', type: 'bar',             label: labelOption, data: lateData,    itemStyle: { color: '#ffc107' } }  // sarı
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', function () { chart.resize(); });
+        }
+
+        function renderNameList(items, listId) {
+            var ul = document.getElementById(listId);
+            if (!ul) return;
+
+            ul.innerHTML = "";
+
+            if (!items || items.length === 0) {
+                ul.innerHTML = '<li class="today-status-empty">Kayıt yok</li>';
+                return;
+            }
+
+            items.forEach(function (x) {
+                var li = document.createElement("li");
+                li.className = "today-status-item";
+
+                var dot = document.createElement("div");
+                dot.className = "today-status-dot";
+
+                if (listId.indexOf("present") >= 0) dot.classList.add("present");
+                else if (listId.indexOf("absent") >= 0) dot.classList.add("absent");
+                else if (listId.indexOf("leave") >= 0) dot.classList.add("leave");
+                else if (listId.indexOf("late") >= 0) dot.classList.add("late");
+
+                var span = document.createElement("span");
+                span.textContent = (x.fullName ?? x.FullName ?? "");
+
+                if (dot.classList.length > 1) li.appendChild(dot);
+
+                li.appendChild(span);
+                ul.appendChild(li);
+            });
+        }
+
+        async function loadDashboardData() {
+            try {
+                let summary = {};
+                let isAdmin = false;
+
+                // 1) ÖZET ÖNCE
+                summary = await safeJsonFetch('@Url.Action("GetSummary", "Home")', {});
+                isAdmin = summary.isAdmin === true;
+
+                // 2) Admin / Personel görünürlüğü
+                const rowMy = document.getElementById("row-my-monthly-summary");
+                if (rowMy) rowMy.style.display = "";
+
+                if (!isAdmin) {
+                    document.querySelectorAll(".admin-only").forEach(function (el) {
+                        el.style.display = "none";
+                    });
+                } else {
+                    const elActive = document.getElementById("stat-activeEmployees");
+                    if (elActive) elActive.textContent = summary.activeEmployeeCount || 0;
+
+                    const elLeaves = document.getElementById("stat-openLeaves");
+                    if (elLeaves) elLeaves.textContent = summary.openLeaveCount || 0;
+
+                    const elNewHires = document.getElementById("stat-newHires");
+                    if (elNewHires) elNewHires.textContent = summary.newHireCount || 0;
+
+                    const elLate = document.getElementById("stat-lateEmployees");
+                    if (elLate) elLate.textContent = summary.lateEmployeeCount || 0;
+                }
+
+                // 3) Ortak datalar
+                const [status, birthdays, lastEntriesR] = await Promise.all([
+                    safeJsonFetch('@Url.Action("GetEmployeeStatus", "Home")', {}),
+                    safeJsonFetch('@Url.Action("GetUpcomingBirthdays", "Home")', {}),
+                    safeJsonFetch('@Url.Action("GetLastEntries", "Home")', {})
+                ]);
+
+                const presentEmployees = status.presentEmployees || status.PresentEmployees || [];
+                const absentEmployees = status.absentEmployees || status.AbsentEmployees || [];
+                const leaveEmployees = status.leaveEmployees || status.LeaveEmployees || [];
+                const upcomingBirthdays = birthdays.upcomingBirthdays || birthdays.UpcomingBirthdays || [];
+
+                const elPresCount = document.getElementById("today-present-count");
+                if (elPresCount) elPresCount.textContent = presentEmployees.length.toString();
+
+                const elAbsCount = document.getElementById("today-absent-count");
+                if (elAbsCount) elAbsCount.textContent = absentEmployees.length.toString();
+
+                const elLeaveCount = document.getElementById("today-leave-count");
+                if (elLeaveCount) elLeaveCount.textContent = leaveEmployees.length.toString();
+
+                const elBirthCount = document.getElementById("upcoming-birthday-count");
+                if (elBirthCount) elBirthCount.textContent = upcomingBirthdays.length.toString();
+
+                renderNameList(presentEmployees, "today-present-list");
+                renderNameList(absentEmployees, "today-absent-list");
+                renderNameList(leaveEmployees, "today-leave-list");
+                renderNameList(upcomingBirthdays, "upcoming-birthday-list");
+
+                // === GÜNLÜK GRUPLU PUANTAJ TABLOSU (KÜÇÜKTEN -> BÜYÜĞE) ===
+                const tbody = document.getElementById("lastTransactionsBody");
+                if (tbody) {
+                    tbody.innerHTML = "";
+
+                    const lastEntriesList = Array.isArray(lastEntriesR)
+                        ? lastEntriesR
+                        : (lastEntriesR.lastEntries || lastEntriesR.LastEntries || lastEntriesR.items || []);
+
+                    const map = {}; // dateKey -> { employeeName, inTime, outTime }
+
+                    lastEntriesList.forEach(function (item) {
+                        const empName = item.employeeName || item.EmployeeName || "";
+                        const evTimeRaw = item.eventTime || item.EventTime;
+                        const direction = (item.direction || item.Direction || "").toString().toLowerCase();
+                        if (!evTimeRaw) return;
+
+                        const evTime = new Date(evTimeRaw);
+                        if (isNaN(evTime.getTime())) return;
+
+                        const key = toKeyDate(evTime);
+
+                        if (!map[key]) map[key] = { employeeName: empName, inTime: null, outTime: null };
+
+                        if (direction === "out") {
+                            if (!map[key].outTime || evTime > map[key].outTime) map[key].outTime = evTime;
+                        } else {
+                            if (!map[key].inTime || evTime < map[key].inTime) map[key].inTime = evTime;
+                        }
+
+                        if (!map[key].employeeName && empName) map[key].employeeName = empName;
+                    });
+
+                    const keys = Object.keys(map).sort((a, b) => a.localeCompare(a)); // ESKİ -> YENİ
+
+                    if (keys.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Kayıt yok</td></tr>';
+                    } else {
+                        keys.forEach(function (k) {
+                            const g = map[k];
+                            const dateObj = new Date(k + "T00:00:00");
+
+                            const tr = document.createElement("tr");
+
+                            const tdPerson = document.createElement("td");
+                            tdPerson.className = "col-3";
+                            tdPerson.textContent = g.employeeName || "-";
+
+                            const tdDate = document.createElement("td");
+                            tdDate.textContent = formatDate(dateObj);
+
+                            const tdIn = document.createElement("td");
+                            tdIn.textContent = g.inTime ? formatTime(g.inTime) : "—";
+                            tdIn.classList.add("text-success");
+
+                            const tdOut = document.createElement("td");
+                            tdOut.textContent = g.outTime ? formatTime(g.outTime) : "—";
+                            tdOut.classList.add("text-danger");
+
+                            tr.appendChild(tdPerson);
+                            tr.appendChild(tdDate);
+                            tr.appendChild(tdIn);
+                            tr.appendChild(tdOut);
+
+                            tbody.appendChild(tr);
+                        });
+                    }
+                }
+
+                // 4) HERKES: aylık özet
+                const my = await safeJsonFetch('@Url.Action("GetMyMonthlySummary", "Home")', {});
+                const overtime = (my.overtimeMinutes ?? my.OvertimeMinutes ?? 0);
+                const late = (my.lateArrivalMinutes ?? my.LateArrivalMinutes ?? 0);
+                const leave = (my.usedLeaveDays ?? my.UsedLeaveDays ?? 0);
+
+                const elMyOver = document.getElementById("my-overtime-minutes");
+                if (elMyOver) elMyOver.textContent = overtime.toString();
+
+                const elMyLate = document.getElementById("my-late-minutes");
+                if (elMyLate) elMyLate.textContent = late.toString();
+
+                const elMyLeave = document.getElementById("my-used-leave-days");
+                if (elMyLeave) elMyLeave.textContent = leave.toString();
+
+                // 5) SADECE ADMIN: departman verileri
+                if (isAdmin) {
+                    const [deptCounts, deptDailyTrend] = await Promise.all([
+                        safeJsonFetch('@Url.Action("GetDepartmentCounts", "Home")', {}),
+                        safeJsonFetch('@Url.Action("GetDepartmentDailyTrend", "Home")', {})
+                    ]);
+
+                    if (deptDailyTrend && (deptDailyTrend.departmentDailyTrend || deptDailyTrend.DepartmentDailyTrend || deptDailyTrend.items)) {
+                        const trendData = deptDailyTrend.departmentDailyTrend || deptDailyTrend.DepartmentDailyTrend || deptDailyTrend.items || [];
+                        renderDepartmentDailyChart(trendData);
+                    }
+
+                    if (deptCounts && (deptCounts.departmentCounts || deptCounts.DepartmentCounts || deptCounts.items)) {
+                        const countsData = deptCounts.departmentCounts || deptCounts.DepartmentCounts || deptCounts.items || [];
+                        renderDepartmentDistributionList(countsData);
+                    }
+                }
+            } catch (e) {
+                console.error("Dashboard load error", e);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            setPeriodBadges();
+            loadDashboardData();
+        });
+    </script>
+}

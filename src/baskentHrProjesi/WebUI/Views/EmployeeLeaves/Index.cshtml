@@ -1,0 +1,758 @@
+@{
+    ViewData["Title"] = "Personel İzinleri";
+    ViewData["Subtitle"] = "Personel izin kayıtlarını görüntüleyin ve yönetin.";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <style>
+        .table-action-icon {
+            border: 0;
+            background: transparent;
+            padding: 0.15rem 0.25rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+            .table-action-icon i {
+                font-size: 1.2rem;
+                font-weight: 700;
+            }
+
+            .table-action-icon + .table-action-icon {
+                margin-left: 0.4rem;
+            }
+
+            .table-action-icon.text-warning:hover i,
+            .table-action-icon.text-danger:hover i {
+                opacity: 0.8;
+            }
+
+        .field-error {
+            display: none;
+        }
+
+            .field-error.active {
+                display: block;
+            }
+
+        body.no-permission #btnAdd {
+            pointer-events: none;
+            opacity: .55;
+        }
+
+        body.no-permission #employeeLeavesTable .table-action-icon {
+            pointer-events: none;
+            opacity: .35;
+            cursor: not-allowed;
+        }
+    </style>
+}
+
+@section PageHeader {
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-6 order-md-1 order-last">
+                <h3>Personel İzinleri</h3>
+                <p class="text-subtitle text-muted">@ViewData["Subtitle"]</p>
+            </div>
+            <div class="col-12 col-md-6 order-md-2 order-first">
+                <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a asp-controller="Home" asp-action="Index">Anasayfa</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">Personel İzinleri</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <span class="fw-semibold">@ViewData["Title"]</span>
+            <div class="small text-muted">@ViewData["Subtitle"]</div>
+        </div>
+        <button id="btnAdd" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 px-3 shadow-sm">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>Yeni İzin</span>
+        </button>
+    </div>
+    <div class="card-body">
+        <table id="employeeLeavesTable" class="table table-striped table-bordered align-middle w-100">
+            <thead>
+                <tr>
+                    <th style="width:70px;">#</th>
+                    <th style="width:180px;">Personel</th>
+                    <th style="width:180px;">İzin Türü</th>
+                    <th style="width:140px;">Başlangıç</th>
+                    <th style="width:140px;">Bitiş</th>
+                    <th style="width:80px;">Gün</th>
+                    <th style="width:140px;">Durum</th>
+                    <th style="width:140px;">Talep Tarihi</th>
+                    <th style="width:180px;">Onaylayan</th>
+                    <th style="width:140px;">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="employeeLeaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeLeaveModalLabel">Yeni İzin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="EmployeeLeaveId" />
+                <input type="hidden" id="RequestDate" />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="EmployeeId" class="form-label">Personel</label>
+                        <select id="EmployeeId" class="form-select">
+                            <option value="">Personel seçin</option>
+                        </select>
+                        <div id="EmployeeIdError" class="field-error text-danger small mt-1"></div>
+                        <div class="form-text">İzin kullanacak Personeli seçiniz.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="LeaveTypeId" class="form-label">İzin Türü</label>
+                        <select id="LeaveTypeId" class="form-select">
+                            <option value="">İzin türü seçin</option>
+                        </select>
+                        <div id="LeaveTypeIdError" class="field-error text-danger small mt-1"></div>
+                        <div class="form-text">Kullanılacak izin türünü seçiniz.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="StartDate" class="form-label">Başlangıç Tarihi</label>
+                        <input type="date" id="StartDate" class="form-control" />
+                        <div id="StartDateError" class="field-error text-danger small mt-1"></div>
+                        <div class="form-text">İznin başlangıç tarihini giriniz.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="EndDate" class="form-label">Bitiş Tarihi</label>
+                        <input type="date" id="EndDate" class="form-control" />
+                        <div id="EndDateError" class="field-error text-danger small mt-1"></div>
+                        <div class="form-text">İznin bitiş tarihini giriniz.</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="TotalDays" class="form-label">Toplam Gün</label>
+                        <input type="number" id="TotalDays" class="form-control" min="0" readonly />
+                        <div class="form-text">İki tarih arasındaki toplam gün.</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="ApprovalStatus" class="form-label">Onay Durumu</label>
+                        <select id="ApprovalStatus" class="form-select">
+                            <option value="">Seçin</option>
+                            <option value="Beklemede">Beklemede</option>
+                            <option value="Onaylandı">Onaylı</option>
+                            <option value="Rejected">Reddedildi</option>
+                        </select>
+                        <div class="form-text">İznin mevcut durumunu seçiniz.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="ApproverEmployeeId" class="form-label">Onaylayan Personel</label>
+                        <select id="ApproverEmployeeId" class="form-select">
+                            <option value="">Onaylayan seçin</option>
+                        </select>
+                        <div class="form-text">Varsa izni onaylayan Personeli seçiniz.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-primary" id="btnSave">
+                    <i class="bi bi-save me-1"></i>Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteEmployeeLeaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Silme Onayı</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Bu izin kaydını silmek istediğinize emin misiniz?</p>
+                <p class="text-muted small mb-0">Bu işlem geri alınamaz.</p>
+                <input type="hidden" id="DeleteEmployeeLeaveId" />
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnConfirmDelete">
+                    <i class="bi bi-trash me-1"></i>Sil
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="approveEmployeeLeaveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">İzin Durumu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Bu izin kaydını onaylamak veya reddetmek istiyor musunuz?</p>
+                <p class="text-muted small mb-0">Seçtiğiniz işleme göre izin durumu güncellenecektir.</p>
+                <input type="hidden" id="ApproveEmployeeLeaveId" />
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Vazgeç</button>
+                <div>
+                    <button type="button" class="btn btn-danger btn-sm" id="btnConfirmReject">
+                        <i class="bi bi-x-circle me-1"></i>Reddet
+                    </button>
+                    <button type="button" class="btn btn-success btn-sm" id="btnConfirmApprove">
+                        <i class="bi bi-check-circle me-1"></i>Onayla
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1080">
+    <div id="appToast" class="toast align-items-center border-0 bg-danger text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="appToastBody"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        $(function () {
+            $.fn.dataTable.ext.errMode = 'none';
+
+            var noPermission = false;
+
+            function applyToastVariant(toastEl, variant) {
+                toastEl.classList.remove('bg-danger', 'bg-success', 'bg-warning', 'bg-info', 'bg-secondary', 'text-white', 'text-dark');
+
+                switch ((variant || 'danger').toLowerCase()) {
+                    case 'success':
+                        toastEl.classList.add('bg-success', 'text-white');
+                        break;
+                    case 'warning':
+                        toastEl.classList.add('bg-warning', 'text-dark');
+                        break;
+                    case 'info':
+                        toastEl.classList.add('bg-info', 'text-dark');
+                        break;
+                    case 'secondary':
+                        toastEl.classList.add('bg-secondary', 'text-white');
+                        break;
+                    default:
+                        toastEl.classList.add('bg-danger', 'text-white');
+                        break;
+                }
+            }
+
+            function showPopup(message, variant) {
+                if (!window.bootstrap || !bootstrap.Toast) {
+                    alert(message || '');
+                    return;
+                }
+
+                var toastEl = document.getElementById('appToast');
+                var bodyEl = document.getElementById('appToastBody');
+
+                bodyEl.textContent = message || '';
+                applyToastVariant(toastEl, variant);
+
+                var toast = null;
+                if (bootstrap.Toast.getInstance) toast = bootstrap.Toast.getInstance(toastEl);
+                if (!toast) toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+
+                toast.show();
+            }
+
+            function isNoPermission(xhr) {
+                var s = (xhr && typeof xhr.status !== 'undefined') ? xhr.status : 0;
+                return s === 401 || s === 403 || s === 0 || s >= 500;
+            }
+
+            function applyNoPermissionUi() {
+                $('#btnAdd').prop('disabled', true).addClass('disabled');
+                $('body').addClass('no-permission');
+                $('#employeeLeavesTable').find('.btn-approve,.btn-edit,.btn-delete')
+                    .prop('disabled', true).addClass('disabled');
+            }
+
+            function setNoPermission(msg) {
+                if (noPermission) return;
+                noPermission = true;
+                showPopup(msg || 'yetkiniz bulunmamaktadır.', 'danger');
+                applyNoPermissionUi();
+            }
+
+            function handleFail(xhr, msg) {
+                if (isNoPermission(xhr)) {
+                    setNoPermission(msg || 'yetkiniz bulunmamaktadır.');
+                } else {
+                    showPopup(msg || 'İşlem sırasında hata oluştu.', 'danger');
+                }
+            }
+
+            function formatDate(dateStr) {
+                if (!dateStr) return '';
+                var d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                return d.toLocaleDateString('tr-TR');
+            }
+
+            function recalcTotalDays() {
+                var startDate = $('#StartDate').val();
+                var endDate = $('#EndDate').val();
+
+                if (!startDate || !endDate) {
+                    $('#TotalDays').val('');
+                    return;
+                }
+
+                var s = new Date(startDate + 'T00:00:00');
+                var e = new Date(endDate + 'T00:00:00');
+
+                if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) {
+                    $('#TotalDays').val('');
+                    return;
+                }
+
+                var diffMs = e - s;
+                var diffDays = Math.round(diffMs / 86400000) + 1;
+                $('#TotalDays').val(diffDays);
+            }
+
+            var employeesMap = {};
+            var leaveTypesMap = {};
+            var table;
+
+            function loadLookupsAndInit() {
+                $.get('@Url.Action("GetList", "Employees")')
+                    .done(function (res) {
+                        $.each(res.data || [], function (_, x) {
+                            var full = (x.employeeNumber ? x.employeeNumber + ' - ' : '') +
+                                (x.firstName || '') + ' ' + (x.lastName || '');
+                            employeesMap[x.id] = full.trim();
+                        });
+
+                        $.get('@Url.Action("GetList", "LeaveTypes")')
+                            .done(function (res2) {
+                                $.each(res2.data || [], function (_, x) {
+                                    var text = (x.code ? x.code + ' - ' : '') + (x.name || '');
+                                    leaveTypesMap[x.id] = text.trim();
+                                });
+
+                                initTable();
+                            })
+                            .fail(function (xhr) {
+                                handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                            });
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function initTable() {
+                table = $('#employeeLeavesTable').DataTable({
+                    ajax: {
+                        url: '@Url.Action("GetList", "EmployeeLeaves")',
+                        type: 'GET',
+                        dataSrc: 'data',
+                        error: function (xhr) {
+                            handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                        }
+                    },
+                    columns: [
+                        {
+                            data: null,
+                            width: '70px',
+                            className: 'text-center',
+                            render: function (d, t, r, m) { return m.row + 1; }
+                        },
+                        {
+                            data: 'employeeId',
+                            width: '180px',
+                            render: function (data) {
+                                return employeesMap[data] || data;
+                            }
+                        },
+                        {
+                            data: 'leaveTypeId',
+                            width: '180px',
+                            render: function (data) {
+                                return leaveTypesMap[data] || data;
+                            }
+                        },
+                        {
+                            data: 'startDate',
+                            width: '140px',
+                            render: function (data) {
+                                return formatDate(data);
+                            }
+                        },
+                        {
+                            data: 'endDate',
+                            width: '140px',
+                            render: function (data) {
+                                return formatDate(data);
+                            }
+                        },
+                        {
+                            data: 'totalDays',
+                            width: '80px'
+                        },
+                        {
+                            data: 'approvalStatus',
+                            width: '140px'
+                        },
+                        {
+                            data: 'requestDate',
+                            width: '140px',
+                            render: function (data) {
+                                return formatDate(data);
+                            }
+                        },
+                        {
+                            data: 'approverEmployeeId',
+                            width: '180px',
+                            render: function (data) {
+                                if (!data) return '';
+                                return employeesMap[data] || data;
+                            }
+                        },
+                        {
+                            data: null,
+                            orderable: false,
+                            searchable: false,
+                            width: '140px',
+                            className: 'text-end',
+                            render: function (data, type, row) {
+                                var approveBtn = '';
+                                if (row.approvalStatus === 'Beklemede') {
+                                    approveBtn = `
+                                        <button class="table-action-icon text-success btn-approve" data-id="${row.id}">
+                                            <i class="bi bi-check-circle"></i>
+                                        </button>`;
+                                }
+                                return `
+                                    ${approveBtn}
+                                    <button class="table-action-icon text-warning btn-edit" data-id="${row.id}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="table-action-icon text-danger btn-delete" data-id="${row.id}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>`;
+                            }
+                        }
+                    ],
+                    language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/tr.json" },
+                    drawCallback: function () {
+                        if (!noPermission) return;
+                        applyNoPermissionUi();
+                    }
+                });
+            }
+
+            function clearValidation() {
+                $('#EmployeeId,#LeaveTypeId,#StartDate,#EndDate').removeClass('is-invalid');
+                $('#EmployeeIdError,#LeaveTypeIdError,#StartDateError,#EndDateError').removeClass('active').text('');
+            }
+
+            function showError(id, msg) {
+                $(id).addClass('is-invalid');
+                $(id + 'Error').addClass('active').text(msg);
+            }
+
+            function fillSelect($el, data, selectedId, textSelector) {
+                $el.empty();
+                $el.append($('<option>', { value: '', text: 'Seçin' }));
+                $.each(data || [], function (_, item) {
+                    $el.append($('<option>', {
+                        value: item.id,
+                        text: textSelector(item)
+                    }));
+                });
+                if (selectedId) $el.val(String(selectedId));
+            }
+
+            function loadEmployees(selectedId, targetSelector) {
+                return $.get('@Url.Action("GetList", "Employees")')
+                    .done(function (res) {
+                        fillSelect($(targetSelector || '#EmployeeId'), res.data, selectedId, function (x) {
+                            return (x.employeeNumber || '') + ' - ' + (x.firstName || '') + ' ' + (x.lastName || '');
+                        });
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function loadLeaveTypes(selectedId) {
+                return $.get('@Url.Action("GetList", "LeaveTypes")')
+                    .done(function (res) {
+                        fillSelect($('#LeaveTypeId'), res.data, selectedId, function (x) {
+                            return (x.code || '') + ' - ' + (x.name || '');
+                        });
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function openCreateModal() {
+                $('#EmployeeLeaveId').val('');
+                $('#EmployeeId').val('');
+                $('#LeaveTypeId').val('');
+                $('#StartDate').val('');
+                $('#EndDate').val('');
+                $('#TotalDays').val('');
+                $('#ApprovalStatus').val('');
+                $('#ApproverEmployeeId').val('');
+                $('#RequestDate').val(new Date().toISOString());
+                clearValidation();
+                $('#employeeLeaveModalLabel').text('Yeni İzin');
+
+                $.when(
+                    loadEmployees(),
+                    loadLeaveTypes(),
+                    loadEmployees(null, '#ApproverEmployeeId')
+                ).done(function () {
+                    if (noPermission) return;
+                    recalcTotalDays();
+                    var modal = new bootstrap.Modal(document.getElementById('employeeLeaveModal'));
+                    modal.show();
+                });
+            }
+
+            function openEditModal(id) {
+                clearValidation();
+                $.get('@Url.Action("Get", "EmployeeLeaves")', { id: id })
+                    .done(function (res) {
+                        $('#EmployeeLeaveId').val(res.id);
+                        $('#TotalDays').val(res.totalDays);
+                        $('#ApprovalStatus').val(res.approvalStatus || '');
+                        $('#RequestDate').val(res.requestDate || '');
+                        $('#StartDate').val(res.startDate ? new Date(res.startDate).toISOString().substring(0, 10) : '');
+                        $('#EndDate').val(res.endDate ? new Date(res.endDate).toISOString().substring(0, 10) : '');
+                        recalcTotalDays();
+
+                        $.when(
+                            loadEmployees(res.employeeId),
+                            loadLeaveTypes(res.leaveTypeId),
+                            loadEmployees(res.approverEmployeeId, '#ApproverEmployeeId')
+                        ).done(function () {
+                            if (noPermission) return;
+                            $('#employeeLeaveModalLabel').text('İzin Düzenle');
+                            var modal = new bootstrap.Modal(document.getElementById('employeeLeaveModal'));
+                            modal.show();
+                        });
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Kayıt okunamadı.');
+                    });
+            }
+
+            $('#StartDate,#EndDate').on('change', function () {
+                recalcTotalDays();
+            });
+
+            $('#btnAdd').on('click', function () {
+                if (noPermission) return;
+                openCreateModal();
+            });
+
+            $('#employeeLeavesTable').on('click', '.btn-edit', function () {
+                if (noPermission) return;
+                openEditModal($(this).data('id'));
+            });
+
+            var deleteModalEl = document.getElementById('deleteEmployeeLeaveModal');
+            var deleteModal = new bootstrap.Modal(deleteModalEl);
+
+            $('#employeeLeavesTable').on('click', '.btn-delete', function () {
+                if (noPermission) return;
+                $('#DeleteEmployeeLeaveId').val($(this).data('id'));
+                deleteModal.show();
+            });
+
+            $('#btnConfirmDelete').on('click', function () {
+                if (noPermission) return;
+
+                var id = $('#DeleteEmployeeLeaveId').val();
+                $.post('@Url.Action("Delete", "EmployeeLeaves")', { id: id })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            deleteModal.hide();
+                            table.ajax.reload(null, false);
+                            showPopup('Silme işlemi tamamlandı.', 'success');
+                        } else {
+                            showPopup((res && res.message) || 'Silme işlemi başarısız.', 'warning');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Silme işlemi sırasında hata oluştu.');
+                    });
+            });
+
+            var approveModalEl = document.getElementById('approveEmployeeLeaveModal');
+            var approveModal = new bootstrap.Modal(approveModalEl);
+
+            $('#employeeLeavesTable').on('click', '.btn-approve', function () {
+                if (noPermission) return;
+                $('#ApproveEmployeeLeaveId').val($(this).data('id'));
+                approveModal.show();
+            });
+
+            $('#btnConfirmApprove').on('click', function () {
+                if (noPermission) return;
+
+                var id = $('#ApproveEmployeeLeaveId').val();
+                $.post('@Url.Action("Approve", "EmployeeLeaves")', { id: id })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            approveModal.hide();
+                            table.ajax.reload(null, false);
+                            showPopup('İzin onaylandı.', 'success');
+                        } else {
+                            showPopup((res && res.message) || 'Onaylama işlemi başarısız.', 'warning');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Onaylama işlemi sırasında hata oluştu.');
+                    });
+            });
+
+            $('#btnConfirmReject').on('click', function () {
+                if (noPermission) return;
+
+                var id = $('#ApproveEmployeeLeaveId').val();
+                $.post('@Url.Action("Reject", "EmployeeLeaves")', { id: id })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            approveModal.hide();
+                            table.ajax.reload(null, false);
+                            showPopup('İzin reddedildi.', 'success');
+                        } else {
+                            showPopup((res && res.message) || 'Reddetme işlemi başarısız.', 'warning');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Reddetme işlemi sırasında hata oluştu.');
+                    });
+            });
+
+            $('#btnSave').on('click', function () {
+                if (noPermission) return;
+
+                clearValidation();
+
+                var id = $('#EmployeeLeaveId').val();
+                var employeeId = $('#EmployeeId').val();
+                var leaveTypeId = $('#LeaveTypeId').val();
+                var startDate = $('#StartDate').val();
+                var endDate = $('#EndDate').val();
+
+                recalcTotalDays();
+                var totalDays = $('#TotalDays').val();
+                var approvalStatus = $('#ApprovalStatus').val();
+                var requestDate = $('#RequestDate').val();
+                var approverEmployeeId = $('#ApproverEmployeeId').val();
+
+                var hasError = false;
+
+                if (!employeeId) { showError('#EmployeeId', 'Personel zorunludur.'); hasError = true; }
+                if (!leaveTypeId) { showError('#LeaveTypeId', 'İzin türü zorunludur.'); hasError = true; }
+                if (!startDate) { showError('#StartDate', 'Başlangıç tarihi zorunludur.'); hasError = true; }
+                if (!endDate) { showError('#EndDate', 'Bitiş tarihi zorunludur.'); hasError = true; }
+                if (hasError) return;
+
+                var url;
+                var payload;
+
+                if (id) {
+                    url = '@Url.Action("Update", "EmployeeLeaves")';
+                    payload = {
+                        id: id,
+                        employeeId: employeeId,
+                        leaveTypeId: leaveTypeId,
+                        startDate: startDate,
+                        endDate: endDate,
+                        totalDays: totalDays || 0,
+                        approvalStatus: approvalStatus || null,
+                        requestDate: requestDate || null,
+                        approverEmployeeId: approverEmployeeId || null
+                    };
+                } else {
+                    url = '@Url.Action("Create", "EmployeeLeaves")';
+
+                    if (!requestDate) {
+                        requestDate = new Date().toISOString();
+                        $('#RequestDate').val(requestDate);
+                    }
+
+                    if (!approvalStatus) {
+                        approvalStatus = 'Pending';
+                    }
+
+                    payload = {
+                        employeeId: employeeId,
+                        leaveTypeId: leaveTypeId,
+                        startDate: startDate,
+                        endDate: endDate,
+                        totalDays: totalDays || null,
+                        approvalStatus: approvalStatus,
+                        requestDate: requestDate,
+                        approverEmployeeId: approverEmployeeId || null
+                    };
+                }
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: payload
+                }).done(function (res) {
+                    if (res && res.success) {
+                        var modalEl = document.getElementById('employeeLeaveModal');
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        table.ajax.reload(null, false);
+                        showPopup('Kayıt başarıyla kaydedildi.', 'success');
+                    } else {
+                        showPopup((res && res.message) || 'Kaydetme işlemi başarısız.', 'warning');
+                    }
+                }).fail(function (xhr) {
+                    handleFail(xhr, 'Kaydetme işlemi sırasında hata oluştu.');
+                });
+            });
+
+            loadLookupsAndInit();
+        });
+    </script>
+}

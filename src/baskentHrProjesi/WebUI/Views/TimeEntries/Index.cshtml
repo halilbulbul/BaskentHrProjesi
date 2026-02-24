@@ -1,0 +1,730 @@
+@{
+    ViewData["Title"] = "Personel Hareketleri";
+    ViewData["Subtitle"] = "Giriş/çıkış kayıtlarını görüntüleyin ve yönetin.";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.3.1/css/rowGroup.bootstrap5.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <style>
+        .table-action-icon {
+            border: 0;
+            background: transparent;
+            padding: 0.15rem 0.25rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+            .table-action-icon i {
+                font-size: 1.2rem;
+                font-weight: 700;
+            }
+
+            .table-action-icon + .table-action-icon {
+                margin-left: 0.4rem;
+            }
+
+            .table-action-icon.text-warning:hover i,
+            .table-action-icon.text-danger:hover i {
+                opacity: 0.8;
+            }
+
+        .field-error {
+            display: none;
+        }
+
+            .field-error.active {
+                display: block;
+            }
+
+        /* sadece bu sayfa: add + satır içi aksiyonlar */
+        body.no-permission #btnAdd,
+        body.no-permission #btnFilter,
+        body.no-permission #btnClearFilter {
+            pointer-events: none;
+            opacity: .55;
+        }
+
+        body.no-permission #timeEntriesTable .table-action-icon,
+        body.no-permission #timeEntriesTable .dt-toggle,
+        body.no-permission #timeEntriesTable .btn-edit,
+        body.no-permission #timeEntriesTable .btn-delete {
+            pointer-events: none;
+            opacity: .35;
+            cursor: not-allowed;
+        }
+    </style>
+}
+
+@section PageHeader {
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-6 order-md-1 order-last">
+                <h3>Personel Hareketleri</h3>
+                <p class="text-subtitle text-muted">@ViewData["Subtitle"]</p>
+            </div>
+            <div class="col-12 col-md-6 order-md-2 order-first">
+                <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a asp-controller="Home" asp-action="Index">Anasayfa</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">Personel Hareketleri</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <span class="fw-semibold">@ViewData["Title"]</span>
+            <div class="small text-muted">@ViewData["Subtitle"]</div>
+        </div>
+        <button id="btnAdd" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 px-3 shadow-sm">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>Yeni Kayıt</span>
+        </button>
+    </div>
+    <div class="card-body">
+
+        <!-- FİLTRELER -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-4">
+                <label for="FilterEmployeeId" class="form-label mb-1">Personel (Filtre)</label>
+                <select id="FilterEmployeeId" class="form-select form-select-sm">
+                    <option value="">Tümü</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="FilterMonth" class="form-label mb-1">Ay</label>
+                <select id="FilterMonth" class="form-select form-select-sm">
+                    <option value="">Tümü</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="FilterYear" class="form-label mb-1">Yıl</label>
+                <select id="FilterYear" class="form-select form-select-sm">
+                    <option value="">Tümü</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="ms-md-auto">
+                    <button id="btnFilter" class="btn btn-outline-primary btn-sm me-2">
+                        <i class="bi bi-funnel me-1"></i>Filtrele
+                    </button>
+                    <button id="btnClearFilter" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-x-circle me-1"></i>Temizle
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- /FİLTRELER -->
+
+        <table id="timeEntriesTable" class="table table-striped table-bordered align-middle w-100">
+            <thead>
+                <tr>
+                    <th style="width:70px;">#</th>
+                    <th style="width:180px;">Personel</th>
+                    <th style="width:120px;">Kayıt Sayısı</th>
+                    <th style="width:120px;">Ay</th>
+                    <th style="width:100px;">Yıl</th>
+                    <th style="width:140px;"></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="timeEntryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="timeEntryModalLabel">Yeni Kayıt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="TimeEntryId" />
+
+                <!-- Kullanıcıya gösterilmeyen alanlar -->
+                <input type="hidden" id="Source" value="Manual" />
+                <input type="hidden" id="DeviceId" value="WEB" />
+
+                <div class="mb-3">
+                    <label for="EmployeeId" class="form-label">Personel</label>
+                    <select id="EmployeeId" class="form-select">
+                        <option value="">Personel seçin</option>
+                    </select>
+                    <div id="EmployeeIdError" class="field-error text-danger small mt-1"></div>
+                    <div class="form-text">Giriş/çıkış kaydı olan Personeli seçiniz.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="EventTime" class="form-label">Zaman</label>
+                    <input type="datetime-local" id="EventTime" class="form-control" />
+                    <div id="EventTimeError" class="field-error text-danger small mt-1"></div>
+                    <div class="form-text">Kart okuma/turnike zamanı.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="Direction" class="form-label">Yön</label>
+                    <select id="Direction" class="form-select">
+                        <option value="">Seçin</option>
+                        <option value="In">Giriş</option>
+                        <option value="Out">Çıkış</option>
+                    </select>
+                    <div class="form-text">Giriş mi çıkış mı olduğunu seçiniz.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-primary" id="btnSave">
+                    <i class="bi bi-save me-1"></i>Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteTimeEntryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Silme Onayı</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Bu puantaj kaydını silmek istediğinize emin misiniz?</p>
+                <p class="text-muted small mb-0">Bu işlem geri alınamaz.</p>
+                <input type="hidden" id="DeleteTimeEntryId" />
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-danger btn-sm" id="btnConfirmDelete">
+                    <i class="bi bi-trash me-1"></i>Sil
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1080">
+    <div id="appToast" class="toast align-items-center border-0 bg-danger text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="appToastBody"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        $(function () {
+            $.fn.dataTable.ext.errMode = 'none';
+
+            var table;
+            var noPermission = false;
+
+            function applyToastVariant(toastEl, variant) {
+                toastEl.classList.remove('bg-danger', 'bg-success', 'bg-warning', 'bg-info', 'bg-secondary', 'text-white', 'text-dark');
+                switch ((variant || 'danger').toLowerCase()) {
+                    case 'success': toastEl.classList.add('bg-success', 'text-white'); break;
+                    case 'warning': toastEl.classList.add('bg-warning', 'text-dark'); break;
+                    case 'info': toastEl.classList.add('bg-info', 'text-dark'); break;
+                    case 'secondary': toastEl.classList.add('bg-secondary', 'text-white'); break;
+                    default: toastEl.classList.add('bg-danger', 'text-white'); break;
+                }
+            }
+
+            function showPopup(message, variant) {
+                if (!window.bootstrap || !bootstrap.Toast) {
+                    alert(message || '');
+                    return;
+                }
+
+                var toastEl = document.getElementById('appToast');
+                var bodyEl = document.getElementById('appToastBody');
+
+                bodyEl.textContent = message || '';
+                applyToastVariant(toastEl, variant);
+
+                var toast = null;
+                if (bootstrap.Toast.getInstance) toast = bootstrap.Toast.getInstance(toastEl);
+                if (!toast) toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+
+                toast.show();
+            }
+
+            function isNoPermission(xhr) {
+                var s = (xhr && typeof xhr.status !== 'undefined') ? xhr.status : 0;
+                return s === 401 || s === 403 || s === 0 || s >= 500;
+            }
+
+            function applyNoPermissionUi() {
+                $('#btnAdd,#btnFilter,#btnClearFilter').prop('disabled', true).addClass('disabled');
+                $('body').addClass('no-permission');
+
+                // mevcut sayfa içi aksiyonlar
+                $('#timeEntriesTable').find('.dt-toggle,.btn-edit,.btn-delete,.table-action-icon')
+                    .prop('disabled', true).addClass('disabled');
+            }
+
+            function setNoPermission(msg) {
+                if (noPermission) return;
+                noPermission = true;
+                showPopup(msg || 'yetkiniz bulunmamaktadır.', 'danger');
+                applyNoPermissionUi();
+            }
+
+            function handleFail(xhr, msg) {
+                if (isNoPermission(xhr)) setNoPermission(msg || 'yetkiniz bulunmamaktadır.');
+                else showPopup(msg || 'İşlem sırasında hata oluştu.', 'danger');
+            }
+
+            function clearValidation() {
+                $('#EmployeeId,#EventTime').removeClass('is-invalid');
+                $('#EmployeeIdError,#EventTimeError').removeClass('active').text('');
+            }
+
+            function showError(id, msg) {
+                $(id).addClass('is-invalid');
+                $(id + 'Error').addClass('active').text(msg);
+            }
+
+            function fillSelect($el, data, selectedId, textSelector, placeholderText) {
+                $el.empty();
+                $el.append($('<option>', { value: '', text: placeholderText || 'Seçin' }));
+                $.each(data || [], function (_, item) {
+                    $el.append($('<option>', { value: item.id, text: textSelector(item) }));
+                });
+                if (selectedId) $el.val(String(selectedId)).trigger('change');
+            }
+
+            function fillFilterEmployeeSelect(data) {
+                var $filter = $('#FilterEmployeeId');
+                var current = $filter.val();
+                $filter.empty();
+                $filter.append($('<option>', { value: '', text: 'Tümü' }));
+                $.each(data || [], function (_, item) {
+                    var text = (item.employeeNumber || '') + ' - ' + (item.firstName || '') + ' ' + (item.lastName || '');
+                    $filter.append($('<option>', { value: item.id, text: text }));
+                });
+                if (current) $filter.val(current).trigger('change');
+            }
+
+            function loadEmployees(selectedId) {
+                return $.get('@Url.Action("GetList", "Employees")')
+                    .done(function (res) {
+                        var data = res.data || res.items || [];
+                        fillSelect(
+                            $('#EmployeeId'),
+                            data,
+                            selectedId,
+                            function (x) { return (x.employeeNumber || '') + ' - ' + (x.firstName || '') + ' ' + (x.lastName || ''); },
+                            'Personel seçin'
+                        );
+                        fillFilterEmployeeSelect(data);
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function toLocalDateTimeInputValue(dateStr) {
+                if (!dateStr) return '';
+                var dt = new Date(dateStr);
+                if (isNaN(dt)) return '';
+                var y = dt.getFullYear();
+                var m = ('0' + (dt.getMonth() + 1)).slice(-2);
+                var d = ('0' + dt.getDate()).slice(-2);
+                var h = ('0' + dt.getHours()).slice(-2);
+                var min = ('0' + dt.getMinutes()).slice(-2);
+                return y + '-' + m + '-' + d + 'T' + h + ':' + min;
+            }
+
+            function initMonthFilter() {
+                var $m = $('#FilterMonth');
+                $m.empty();
+                $m.append($('<option>', { value: '', text: 'Tümü' }));
+
+                var monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+                var now = new Date();
+                var currentMonth = now.getMonth() + 1;
+
+                for (var i = 0; i < 12; i++) {
+                    $m.append($('<option>', { value: (i + 1), text: monthNames[i] }));
+                }
+
+                $m.val(String(currentMonth));
+            }
+
+            function initYearFilter() {
+                var $year = $('#FilterYear');
+                $year.empty();
+                $year.append($('<option>', { value: '', text: 'Tümü' }));
+
+                var now = new Date();
+                var currentYear = now.getFullYear();
+
+                for (var y = currentYear - 5; y <= currentYear + 1; y++) {
+                    $year.append($('<option>', { value: y, text: y }));
+                }
+
+                $year.val(String(currentYear));
+            }
+
+            function getMonthName(m) {
+                var monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+                    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+                m = parseInt(m);
+                if (!m || m < 1 || m > 12) return '';
+                return monthNames[m - 1];
+            }
+
+            initMonthFilter();
+            initYearFilter();
+
+            loadEmployees().done(function () {
+                $('#EmployeeId').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Personel seçin',
+                    allowClear: true,
+                    dropdownParent: $('#timeEntryModal')
+                });
+
+                $('#FilterEmployeeId').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Tümü',
+                    allowClear: true
+                });
+            });
+
+            function buildChildTable(entries) {
+                entries = entries || [];
+
+                var groupsMap = {};
+                for (var i = 0; i < entries.length; i++) {
+                    var e = entries[i];
+                    if (!e.eventTime) continue;
+                    var dt = new Date(e.eventTime);
+                    if (isNaN(dt)) continue;
+
+                    var key =
+                        dt.getFullYear() + '-' +
+                        ('0' + (dt.getMonth() + 1)).slice(-2) + '-' +
+                        ('0' + dt.getDate()).slice(-2);
+
+                    if (!groupsMap[key]) groupsMap[key] = { date: dt, items: [] };
+                    groupsMap[key].items.push(e);
+                }
+
+                var groups = Object.values(groupsMap).sort(function (a, b) { return a.date - b.date; });
+
+                var html = '<table class="table table-sm table-striped mb-0">';
+                html += '<thead><tr>' +
+                    '<th style="width:70px;" class="text-center">#</th>' +
+                    '<th style="width:140px;">Tarih</th>' +
+                    '<th style="width:120px;">Giriş</th>' +
+                    '<th style="width:120px;">Çıkış</th>' +
+                    '<th style="width:140px;" class="text-end">İşlemler</th>' +
+                    '</tr></thead><tbody>';
+
+                for (var gi = 0; gi < groups.length; gi++) {
+                    var g = groups[gi];
+                    var items = g.items || [];
+
+                    var firstIn = null, lastOut = null;
+
+                    for (var j = 0; j < items.length; j++) {
+                        var it = items[j];
+                        var d = it.eventTime ? new Date(it.eventTime) : null;
+                        if (!d || isNaN(d)) continue;
+
+                        if (it.direction === 'In') {
+                            if (!firstIn || d < new Date(firstIn.eventTime)) firstIn = it;
+                        } else if (it.direction === 'Out') {
+                            if (!lastOut || d > new Date(lastOut.eventTime)) lastOut = it;
+                        }
+                    }
+
+                    var dt2 = g.date;
+                    var dateText = dt2.toLocaleDateString('tr-TR');
+
+                    var inText = '';
+                    if (firstIn && firstIn.eventTime) {
+                        var dIn = new Date(firstIn.eventTime);
+                        if (!isNaN(dIn)) inText = dIn.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    var outText = '';
+                    if (lastOut && lastOut.eventTime) {
+                        var dOut = new Date(lastOut.eventTime);
+                        if (!isNaN(dOut)) outText = dOut.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                    }
+
+                    var primary = lastOut || firstIn || (items.length > 0 ? items[0] : null);
+                    var primaryId = primary ? primary.id : '';
+
+                    html += '<tr>' +
+                        '<td class="text-center align-middle">' + (gi + 1) + '</td>' +
+                        '<td class="align-middle">' + dateText + '</td>' +
+                        '<td class="align-middle">' + (inText ? '<span class="text-success fw-semibold">' + inText + '</span>' : '') + '</td>' +
+                        '<td class="align-middle">' + (outText ? '<span class="text-danger fw-semibold">' + outText + '</span>' : '') + '</td>' +
+                        '<td class="text-end align-middle">' +
+                            (primaryId
+                                ? '<button class="table-action-icon text-warning btn-edit" data-id="' + primaryId + '"><i class="bi bi-pencil-square"></i></button>' +
+                                  '<button class="table-action-icon text-danger btn-delete" data-id="' + primaryId + '"><i class="bi bi-trash"></i></button>'
+                                : '') +
+                        '</td>' +
+                        '</tr>';
+                }
+
+                html += '</tbody></table>';
+                return html;
+            }
+
+            table = $('#timeEntriesTable').DataTable({
+                ajax: {
+                    url: '@Url.Action("GetList", "TimeEntries")',
+                    type: 'GET',
+                    data: function (d) {
+                        d.employeeId = $('#FilterEmployeeId').val();
+                        d.month = $('#FilterMonth').val();
+                        d.year = $('#FilterYear').val();
+                    },
+                    dataSrc: function (json) {
+                        var rows = (json && json.data) ? json.data : json;
+                        rows = rows || [];
+
+                        var groups = {};
+                        $.each(rows, function (_, item) {
+                            if (!item) return;
+                            var key = item.employeeId;
+                            if (!groups[key]) {
+                                groups[key] = {
+                                    employeeId: item.employeeId,
+                                    employeeFullName: item.employeeFullName,
+                                    entries: [],
+                                    entriesCount: 0,
+                                    month: null,
+                                    year: null
+                                };
+                            }
+
+                            groups[key].entries.push(item);
+                            groups[key].entriesCount = groups[key].entries.length;
+
+                            if (item.eventTime && (groups[key].month == null || groups[key].year == null)) {
+                                var dt = new Date(item.eventTime);
+                                if (!isNaN(dt)) {
+                                    groups[key].year = dt.getFullYear();
+                                    groups[key].month = dt.getMonth() + 1;
+                                }
+                            }
+                        });
+
+                        return Object.values(groups);
+                    },
+                    error: function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    }
+                },
+                columns: [
+                    {
+                        data: null,
+                        width: '70px',
+                        className: 'text-center',
+                        orderable: false,
+                        render: function () {
+                            return '<button type="button" class="btn btn-sm btn-outline-secondary dt-toggle">+</button>';
+                        }
+                    },
+                    { data: 'employeeFullName', width: '180px', render: function (d) { return d || ''; } },
+                    {
+                        data: null,
+                        width: '120px',
+                        className: 'text-center',
+                        render: function (d, t, row) {
+                            var count = (row.entries && row.entries.length) || row.entriesCount || 0;
+                            return count + ' kayıt';
+                        }
+                    },
+                    { data: 'month', width: '120px', render: function (d, t, row) { return row.month ? getMonthName(row.month) : ''; } },
+                    { data: 'year', width: '100px', render: function (d) { return d || ''; } },
+                    { data: null, width: '140px', orderable: false, searchable: false, render: function () { return ''; } }
+                ],
+                order: [[1, 'asc']],
+                language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/tr.json" },
+                drawCallback: function () {
+                    if (!noPermission) return;
+                    applyNoPermissionUi();
+                }
+            });
+
+            $('#timeEntriesTable tbody').on('click', '.dt-toggle', function () {
+                if (noPermission) return;
+
+                var tr = $(this).closest('tr');
+                var row = table.row(tr);
+
+                if (row.child.isShown()) {
+                    row.child.hide();
+                    $(this).text('+');
+                } else {
+                    var data = row.data();
+                    row.child(buildChildTable(data.entries)).show();
+                    $(this).text('-');
+                }
+            });
+
+            $('#btnFilter').on('click', function () {
+                if (noPermission) return;
+                table.ajax.reload();
+            });
+
+            $('#btnClearFilter').on('click', function () {
+                if (noPermission) return;
+
+                $('#FilterEmployeeId').val('').trigger('change');
+                initMonthFilter();
+                initYearFilter();
+                table.ajax.reload();
+            });
+
+            function openCreateModal() {
+                if (noPermission) return;
+
+                $('#TimeEntryId').val('');
+                $('#EmployeeId').prop('disabled', false);
+                $('#EmployeeId').val('').trigger('change');
+                $('#EventTime').val('');
+                $('#Direction').val('');
+                $('#Source').val('Manual');
+                $('#DeviceId').val('WEB');
+                clearValidation();
+                $('#timeEntryModalLabel').text('Yeni Kayıt');
+
+                loadEmployees().done(function () {
+                    $('#EmployeeId').val('').trigger('change');
+                    var modal = new bootstrap.Modal(document.getElementById('timeEntryModal'));
+                    modal.show();
+                });
+            }
+
+            function openEditModal(id) {
+                if (noPermission) return;
+
+                clearValidation();
+                $.get('@Url.Action("Get", "TimeEntries")', { id: id })
+                    .done(function (res) {
+                        $('#TimeEntryId').val(res.id);
+                        $('#Direction').val(res.direction || '');
+                        $('#EventTime').val(toLocalDateTimeInputValue(res.eventTime));
+                        $('#Source').val(res.source || 'Manual');
+                        $('#DeviceId').val(res.deviceId || 'WEB');
+
+                        loadEmployees(res.employeeId).done(function () {
+                            $('#EmployeeId').prop('disabled', true);
+                            $('#EmployeeId').val(String(res.employeeId)).trigger('change');
+                            $('#timeEntryModalLabel').text('Kayıt Düzenle');
+                            var modal = new bootstrap.Modal(document.getElementById('timeEntryModal'));
+                            modal.show();
+                        });
+                    })
+                    .fail(function (xhr) { handleFail(xhr, 'Kayıt okunamadı.'); });
+            }
+
+            $('#btnAdd').on('click', function () { openCreateModal(); });
+
+            $('#timeEntriesTable').on('click', '.btn-edit', function () {
+                openEditModal($(this).data('id'));
+            });
+
+            var deleteModalEl = document.getElementById('deleteTimeEntryModal');
+            var deleteModal = new bootstrap.Modal(deleteModalEl);
+
+            $('#timeEntriesTable').on('click', '.btn-delete', function () {
+                if (noPermission) return;
+                $('#DeleteTimeEntryId').val($(this).data('id'));
+                deleteModal.show();
+            });
+
+            $('#btnConfirmDelete').on('click', function () {
+                if (noPermission) return;
+
+                var id = $('#DeleteTimeEntryId').val();
+                $.post('@Url.Action("Delete", "TimeEntries")', { id: id })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            deleteModal.hide();
+                            table.ajax.reload(null, false);
+                            showPopup('Silme işlemi tamamlandı.', 'success');
+                        } else {
+                            showPopup((res && res.message) || 'Silme işlemi başarısız.', 'warning');
+                        }
+                    })
+                    .fail(function (xhr) { handleFail(xhr, 'Silme işlemi sırasında hata oluştu.'); });
+            });
+
+            $('#btnSave').on('click', function () {
+                if (noPermission) return;
+
+                clearValidation();
+                var id = $('#TimeEntryId').val();
+                var employeeId = $('#EmployeeId').val();
+                var eventTime = $('#EventTime').val();
+                var direction = $('#Direction').val();
+                var source = $('#Source').val() || 'Manual';
+                var deviceId = $('#DeviceId').val() || 'WEB';
+                var hasError = false;
+
+                if (!employeeId) { showError('#EmployeeId', 'Personel zorunludur.'); hasError = true; }
+                if (!eventTime) { showError('#EventTime', 'Zaman zorunludur.'); hasError = true; }
+                if (hasError) return;
+
+                var url = id ? '@Url.Action("Update", "TimeEntries")' : '@Url.Action("Create", "TimeEntries")';
+                var payload = {
+                    id: id,
+                    employeeId: employeeId,
+                    eventTime: eventTime,
+                    direction: direction || null,
+                    source: source,
+                    deviceId: deviceId
+                };
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: payload
+                }).done(function (res) {
+                    if (res && res.success) {
+                        var modalEl = document.getElementById('timeEntryModal');
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        modal.hide();
+                        table.ajax.reload(null, false);
+                        showPopup('Kayıt kaydedildi.', 'success');
+                    } else {
+                        showPopup((res && res.message) || 'Kaydetme işlemi başarısız.', 'warning');
+                    }
+                }).fail(function (xhr) {
+                    handleFail(xhr, 'Kaydetme işlemi sırasında hata oluştu.');
+                });
+            });
+        });
+    </script>
+}

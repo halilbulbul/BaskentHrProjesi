@@ -1,0 +1,205 @@
+﻿@{
+    Layout = null;
+    ViewData["Title"] = "Giriş Yap";
+}
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"] - İnsan Kaynakları Yönetim Sistemi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Mevcut CSS'ler -->
+    <link rel="stylesheet" href="~/css/bootstrap.css" />
+    <link rel="stylesheet" href="~/vendors/bootstrap-icons/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/app.css" />
+    <link rel="stylesheet" href="~/css/pages/auth.css" />
+    <style>
+        /* Ortada kartlı login görünümü */
+        body {
+            background: #f3f4f6;
+        }
+
+        #auth {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: radial-gradient(circle at top left, #e5edff 0, transparent 55%), radial-gradient(circle at bottom right, #dbeafe 0, transparent 55%);
+        }
+
+        .auth-card {
+            background: #ffffff;
+            border-radius: 1.25rem;
+            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.15);
+            padding: 2.25rem 2rem;
+            max-width: 420px;
+            width: 100%;
+        }
+
+        /* BURASI ÖNEMLİ: @@media */
+        @@media (min-width: 768px) {
+            .auth-card {
+                padding: 2.75rem 2.5rem;
+            }
+        }
+
+        .auth-logo img {
+            height: 40px;
+            width: auto;
+        }
+
+        .auth-logo-text {
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+        }
+
+        .auth-title {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+
+        .auth-subtitle {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #6b7280;
+            max-width: 28rem;
+        }
+
+        .form-control-xl {
+            font-size: 0.95rem;
+        }
+
+        .btn-login {
+            border-radius: 0.75rem;
+        }
+
+        .auth-footer-text {
+            font-size: 0.8rem;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="auth">
+        <div class="auth-card">
+            <div class="auth-logo mb-4 text-center">
+                <a asp-controller="Home" asp-action="Index" class="d-inline-flex align-items-center gap-2">
+                    <img src="~/images/logo/logo.png" alt="Başkent Üniversitesi" />
+                    <span class="fw-bold text-primary auth-logo-text text-uppercase">
+                        İNSAN KAYNAKLARI YÖNETİM SİSTEMİ
+                    </span>
+                </a>
+            </div>
+
+            <!-- Küçük popup alert -->
+            <div id="loginAlert"
+                 class="alert alert-danger py-2 px-3 small d-none shadow-sm"
+                 role="alert">
+            </div>
+
+            <h1 class="auth-title mb-2 text-center">Giriş Yap</h1>
+            <p class="auth-subtitle mb-4 text-center">
+                Personel, puantaj ve izin süreçlerinizi güvenle yönetmek için hesabınızla oturum açın.
+            </p>
+
+            <form id="loginForm" asp-action="Login" asp-controller="Login" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="form-group position-relative has-icon-left mb-3">
+                    <input type="text"
+                           class="form-control form-control-xl"
+                           id="Email"
+                           name="Email"
+                           autocomplete="email"
+                           placeholder="Kurumsal e-posta adresiniz" />
+                    <div class="form-control-icon">
+                        <i class="bi bi-person"></i>
+                    </div>
+                </div>
+
+                <div class="form-group position-relative has-icon-left mb-3">
+                    <input type="password"
+                           class="form-control form-control-xl"
+                           id="Password"
+                           name="Password"
+                           autocomplete="current-password"
+                           placeholder="Şifreniz" />
+                    <div class="form-control-icon">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                </div>
+
+@*                 <div class="form-check form-check-lg d-flex align-items-center mb-3">
+                    <input class="form-check-input me-2" type="checkbox" id="RememberMe" name="RememberMe" />
+                    <label class="form-check-label text-gray-600" for="RememberMe">
+                        Beni hatırda tut
+                    </label>
+                </div> *@
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg shadow-lg mt-2 btn-login w-100">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Giriş Yap
+                </button>
+            </form>
+
+            <div class="text-center mt-4 text-lg fs-6">
+           @*      <p class="mb-2">
+                    <a class="font-bold" href="#">Şifremi unuttum</a>
+                </p> *@
+                <p class="text-gray-600 mb-0 auth-footer-text">
+                    © @DateTime.Now.Year Başkent Üniversitesi · İnsan Kaynakları Yönetim Sistemi
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- wwwroot/js -->
+    <script src="~/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('loginForm');
+            const alertBox = document.getElementById('loginAlert');
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                alertBox.classList.add('d-none');
+                alertBox.textContent = '';
+
+                const formData = new FormData(form);
+                const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+                const token = tokenInput ? tokenInput.value : null;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            ...(token ? { 'RequestVerificationToken': token } : {})
+                        },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        window.location.href = result.redirectUrl || '/';
+                    } else {
+                        alertBox.textContent = result.message || 'E-posta veya şifre hatalı.';
+                        alertBox.classList.remove('d-none');
+                    }
+                } catch (err) {
+                    alertBox.textContent = 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.';
+                    alertBox.classList.remove('d-none');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

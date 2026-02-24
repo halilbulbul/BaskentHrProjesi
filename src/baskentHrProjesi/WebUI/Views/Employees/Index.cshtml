@@ -1,0 +1,835 @@
+@{
+    ViewData["Title"] = "Personeller";
+    ViewData["Subtitle"] = "Personel listenizi görüntüleyin ve yönetin.";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+
+    <style>
+        .table-action-icon {
+            border: 0;
+            background: transparent;
+            padding: 0.15rem 0.25rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+            .table-action-icon i {
+                font-size: 1.2rem;
+                font-weight: 700;
+            }
+
+            .table-action-icon + .table-action-icon {
+                margin-left: 0.4rem;
+            }
+
+            .table-action-icon.text-warning:hover i,
+            .table-action-icon.text-danger:hover i {
+                opacity: 0.8;
+            }
+
+        .field-error {
+            display: none;
+        }
+
+            .field-error.active {
+                display: block;
+            }
+
+        body.no-permission #btnAdd {
+            pointer-events: none;
+            opacity: .55;
+        }
+
+        body.no-permission #employeesTable .table-action-icon {
+            pointer-events: none;
+            opacity: .35;
+            cursor: not-allowed;
+        }
+    </style>
+}
+
+@section PageHeader {
+    <div class="page-title">
+        <div class="row">
+            <div class="col-12 col-md-6 order-md-1 order-last">
+                <h3>Personeller</h3>
+                <p class="text-subtitle text-muted">@ViewData["Subtitle"]</p>
+            </div>
+            <div class="col-12 col-md-6 order-md-2 order-first">
+                <nav aria-label="breadcrumb" class="breadcrumb-header float-start float-lg-end">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a asp-controller="Home" asp-action="Index">Anasayfa</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">Personeller</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <span class="fw-semibold">@ViewData["Title"]</span>
+            <div class="small text-muted">@ViewData["Subtitle"]</div>
+        </div>
+        <button id="btnAdd" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 px-3 shadow-sm">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>Yeni Personel</span>
+        </button>
+    </div>
+    <div class="card-body">
+        <table id="employeesTable" class="table table-striped table-bordered align-middle w-100">
+            <thead>
+                <tr>
+                    <th style="width:70px;">#</th>
+                    <th style="width:140px;">Sicil No</th>
+                    <th>Ad Soyad</th>
+                    <th style="width:140px;">İşe Giriş</th>
+                    <th style="width:140px;">İşten Çıkış</th>
+                    <th style="width:160px;">Departman</th>
+                    <th style="width:160px;">Pozisyon</th>
+                    <th style="width:140px;">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="employeeModal" tabindex="-1" aria-labelledby="employeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="employeeModalLabel">Yeni Personel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="EmployeeId" />
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="EmployeeNumber" class="form-label">Sicil No</label>
+                            <input type="text" id="EmployeeNumber" class="form-control" />
+                            <div id="EmployeeNumberError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personel için benzersiz bir sicil numarası giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="IdentityNo" class="form-label">TC Kimlik No</label>
+                            <input type="text" id="IdentityNo" class="form-control" />
+                            <div id="IdentityNoError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin T.C. kimlik numarasını giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="FirstName" class="form-label">Ad</label>
+                            <input type="text" id="FirstName" class="form-control" />
+                            <div id="FirstNameError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin adını giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="LastName" class="form-label">Soyad</label>
+                            <input type="text" id="LastName" class="form-control" />
+                            <div id="LastNameError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin soyadını giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="BirthDate" class="form-label">Doğum Tarihi</label>
+                            <input type="date" id="BirthDate" class="form-control" />
+                            <div id="BirthDateError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin doğum tarihini giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="Gender" class="form-label">Cinsiyet</label>
+                            <select id="Gender" class="form-select">
+                                <option value="">Seçin</option>
+                                <option value="Erkek">Erkek</option>
+                                <option value="Kadın">Kadın</option>
+                                <option value="Diğer">Diğer</option>
+                            </select>
+                            <div id="GenderError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin cinsiyetini seçiniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="MaritalStatus" class="form-label">Medeni Durum</label>
+                            <select id="MaritalStatus" class="form-select">
+                                <option value="">Seçin</option>
+                                <option value="Bekar">Bekar</option>
+                                <option value="Evli">Evli</option>
+                                <option value="Boşanmış">Boşanmış</option>
+                                <option value="Dul">Dul</option>
+                            </select>
+                            <div id="MaritalStatusError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin medeni durumunu seçiniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="PhoneNumber" class="form-label">Telefon</label>
+                            <input type="tel" id="PhoneNumber" class="form-control" />
+                            <div id="PhoneNumberError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin telefon numarasını giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="Email" class="form-label">E-posta</label>
+                            <input type="email" id="Email" class="form-control" />
+                            <div id="EmailError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin e-posta adresini giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="HireDate" class="form-label">İşe Giriş Tarihi</label>
+                            <input type="date" id="HireDate" class="form-control" />
+                            <div id="HireDateError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin işe giriş tarihini giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="DepartmentId" class="form-label">Departman</label>
+                            <select id="DepartmentId" class="form-select">
+                                <option value="">Seçin</option>
+                            </select>
+                            <div id="DepartmentIdError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin bağlı olduğu departmanı seçiniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="PositionId" class="form-label">Pozisyon</label>
+                            <select id="PositionId" class="form-select">
+                                <option value="">Seçin</option>
+                            </select>
+                            <div id="PositionIdError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Varsa Personelin pozisyonunu seçiniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="ShiftId" class="form-label">Vardia</label>
+                            <select id="ShiftId" class="form-select">
+                                <option value="">Seçin</option>
+                            </select>
+                            <div id="ShiftIdError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Varsa Personela atanacak Vardia seçiniz.</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="City" class="form-label">İl</label>
+                            <select id="City" class="form-select"></select>
+                            <div id="CityError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin ikamet ettiği ili seçiniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="District" class="form-label">İlçe</label>
+                            <select id="District" class="form-select"></select>
+                            <div id="DistrictError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin ikamet ettiği ilçeyi seçiniz.</div>
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="PostalCode" class="form-label">Posta Kodu</label>
+                            <input type="text" id="PostalCode" class="form-control" />
+                            <div id="PostalCodeError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin posta kodunu giriniz.</div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label for="AddressLine" class="form-label">Adres</label>
+                            <textarea id="AddressLine" class="form-control" rows="2"></textarea>
+                            <div id="AddressLineError" class="field-error text-danger small mt-1"></div>
+                            <div class="form-text">Personelin açık adresini giriniz.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-primary" id="btnSaveEmployee">
+                    <i class="bi bi-save me-1"></i>Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteEmployeeModal" tabindex="-1" aria-labelledby="deleteEmployeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteEmployeeModalLabel">Personel Sil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="DeleteEmployeeId" />
+                <p>Bu Personel kaydını silmek istediğinize emin misiniz?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmDelete">
+                    <i class="bi bi-trash me-1"></i>Sil
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1080">
+    <div id="appToast" class="toast align-items-center border-0 bg-danger text-white" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="appToastBody"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        $(function () {
+            $.fn.dataTable.ext.errMode = 'none';
+
+            var noPermission = false;
+
+            function applyToastVariant(toastEl, variant) {
+                toastEl.classList.remove('bg-danger', 'bg-success', 'bg-warning', 'bg-info', 'bg-secondary', 'text-white', 'text-dark');
+
+                switch ((variant || 'danger').toLowerCase()) {
+                    case 'success':
+                        toastEl.classList.add('bg-success', 'text-white');
+                        break;
+                    case 'warning':
+                        toastEl.classList.add('bg-warning', 'text-dark');
+                        break;
+                    case 'info':
+                        toastEl.classList.add('bg-info', 'text-dark');
+                        break;
+                    case 'secondary':
+                        toastEl.classList.add('bg-secondary', 'text-white');
+                        break;
+                    default:
+                        toastEl.classList.add('bg-danger', 'text-white');
+                        break;
+                }
+            }
+
+            function showPopup(message, variant) {
+                if (!window.bootstrap || !bootstrap.Toast) {
+                    alert(message || '');
+                    return;
+                }
+
+                var toastEl = document.getElementById('appToast');
+                var bodyEl = document.getElementById('appToastBody');
+
+                bodyEl.textContent = message || '';
+                applyToastVariant(toastEl, variant);
+
+                var toast = null;
+                if (bootstrap.Toast.getInstance) toast = bootstrap.Toast.getInstance(toastEl);
+                if (!toast) toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+
+                toast.show();
+            }
+
+            function isNoPermission(xhr) {
+                var s = (xhr && typeof xhr.status !== 'undefined') ? xhr.status : 0;
+                return s === 401 || s === 403 || s === 0 || s >= 500;
+            }
+
+            function applyNoPermissionUi() {
+                $('#btnAdd').prop('disabled', true).addClass('disabled');
+                $('body').addClass('no-permission');
+                $('#employeesTable').find('.btn-edit,.btn-delete')
+                    .prop('disabled', true).addClass('disabled');
+            }
+
+            function setNoPermission(msg) {
+                if (noPermission) return;
+                noPermission = true;
+                showPopup(msg || 'yetkiniz bulunmamaktadır.', 'danger');
+                applyNoPermissionUi();
+            }
+
+            function handleFail(xhr, msg) {
+                if (isNoPermission(xhr)) {
+                    setNoPermission(msg || 'yetkiniz bulunmamaktadır.');
+                } else {
+                    showPopup(msg || 'İşlem sırasında hata oluştu.', 'danger');
+                }
+            }
+
+            var departmentsCache = [];
+            var positionsCache = [];
+            var citiesCache = [];
+            var districtsCache = [];
+
+            var table = $('#employeesTable').DataTable({
+                ajax: {
+                    url: '@Url.Action("GetList", "Employees")',
+                    type: 'GET',
+                    dataSrc: 'data',
+                    error: function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    }
+                },
+                columns: [
+                    {
+                        data: null,
+                        width: '70px',
+                        className: 'text-center',
+                        render: function (data, type, row, meta) {
+                            return meta.row + 1;
+                        }
+                    },
+                    { data: 'employeeNumber', width: '140px' },
+                    {
+                        data: null,
+                        render: function (data, type, row) {
+                            var first = row.firstName || '';
+                            var last = row.lastName || '';
+                            return (first + ' ' + last).trim();
+                        }
+                    },
+                    {
+                        data: "hireDate",
+                        render: function (data) {
+                            if (!data) return "";
+                            return new Date(data).toLocaleDateString("tr-TR");
+                        }
+                    },
+                    {
+                        data: "terminationDate",
+                        render: function (data) {
+                            if (!data) return "";
+                            return new Date(data).toLocaleDateString("tr-TR");
+                        }
+                    },
+                    {
+                        data: 'departmentId',
+                        width: '160px',
+                        render: function (data) {
+                            if (!data) return '';
+                            var dep = departmentsCache.find(function (x) { return x.id === data; });
+                            if (!dep) return data;
+                            return dep.code + ' - ' + dep.name;
+                        }
+                    },
+                    {
+                        data: 'positionId',
+                        width: '160px',
+                        render: function (data) {
+                            if (!data) return '';
+                            var pos = positionsCache.find(function (x) { return x.id === data; });
+                            if (!pos) return data;
+                            return pos.code + ' - ' + pos.name;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        width: '140px',
+                        className: 'text-end',
+                        render: function (data, type, row) {
+                            return `
+                                <button class="table-action-icon text-warning btn-edit" data-id="${row.id}" title="Düzenle">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="table-action-icon text-danger btn-delete" data-id="${row.id}" title="Sil">
+                                    <i class="bi bi-trash"></i>
+                                </button>`;
+                        }
+                    }
+                ],
+                paging: true,
+                searching: true,
+                info: true,
+                lengthChange: true,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/tr.json"
+                },
+                drawCallback: function () {
+                    if (!noPermission) return;
+                    applyNoPermissionUi();
+                }
+            });
+
+            function clearValidation() {
+                var requiredFields = [
+                    'EmployeeNumber',
+                    'IdentityNo',
+                    'FirstName',
+                    'LastName',
+                    'BirthDate',
+                    'Gender',
+                    'MaritalStatus',
+                    'PhoneNumber',
+                    'HireDate',
+                    'DepartmentId',
+                    'City',
+                    'District',
+                    'AddressLine'
+                ];
+
+                requiredFields.forEach(function (id) {
+                    $('#' + id).removeClass('is-invalid');
+                    $('#' + id + 'Error').removeClass('active').text('');
+                });
+            }
+
+            function showError(fieldId, message) {
+                $('#' + fieldId).addClass('is-invalid');
+                $('#' + fieldId + 'Error').addClass('active').text(message);
+            }
+
+            function fillSelect($el, items, selectedId, getText) {
+                $el.empty();
+                $el.append($('<option>', { value: '', text: 'Seçin' }));
+                $.each(items || [], function (_, item) {
+                    $el.append($('<option>', {
+                        value: item.id,
+                        text: getText(item)
+                    }));
+                });
+                if (selectedId) {
+                    $el.val(String(selectedId));
+                }
+            }
+
+            function loadDepartments(selectedId) {
+                return $.get('@Url.Action("GetList", "Departments")')
+                    .done(function (res) {
+                        departmentsCache = res.data || [];
+                        fillSelect($('#DepartmentId'), departmentsCache, selectedId, function (x) { return x.code + ' - ' + x.name; });
+                        table.rows().invalidate().draw(false);
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function loadPositions(selectedId) {
+                return $.get('@Url.Action("GetList", "Positions")')
+                    .done(function (res) {
+                        positionsCache = res.data || [];
+                        fillSelect($('#PositionId'), positionsCache, selectedId, function (x) { return x.code + ' - ' + x.name; });
+                        table.rows().invalidate().draw(false);
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function loadShifts(selectedId) {
+                return $.get('@Url.Action("GetList", "Shifts")')
+                    .done(function (res) {
+                        fillSelect($('#ShiftId'), res.data, selectedId, function (x) { return x.name; });
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'yetkiniz bulunmamaktadır.');
+                    });
+            }
+
+            function loadCities(selectedCityName) {
+                return $.get('https://api.turkiyeapi.dev/v1/provinces')
+                    .done(function (res) {
+                        var data = res.data || res;
+                        citiesCache = (data || []).map(function (p) {
+                            return { id: p.name, name: p.name };
+                        });
+                        fillSelect($('#City'), citiesCache, selectedCityName, function (x) { return x.name; });
+                    })
+                    .fail(function (xhr) {
+                        showPopup('İller yüklenemedi.', 'warning');
+                    });
+            }
+
+            function loadDistricts(cityName, selectedDistrictName) {
+                if (!cityName) {
+                    fillSelect($('#District'), [], null, function (x) { return x.name; });
+                    return;
+                }
+
+                return $.get('https://api.turkiyeapi.dev/v1/districts', { province: cityName })
+                    .done(function (res) {
+                        var data = res.data || res;
+                        districtsCache = (data || []).map(function (d) {
+                            return { id: d.name, name: d.name };
+                        });
+                        fillSelect($('#District'), districtsCache, selectedDistrictName, function (x) { return x.name; });
+                    })
+                    .fail(function (xhr) {
+                        showPopup('İlçeler yüklenemedi.', 'warning');
+                    });
+            }
+
+            loadDepartments();
+            loadPositions();
+            loadShifts();
+            loadCities();
+            fillSelect($('#District'), [], null, function (x) { return x.name; });
+
+            $('#City').on('change', function () {
+                if (noPermission) return;
+                var cityName = $(this).val();
+                $('#District').val('');
+                loadDistricts(cityName, null);
+            });
+
+            function openCreateModal() {
+                $('#EmployeeId').val('');
+                $('#EmployeeNumber').val('');
+                $('#IdentityNo').val('');
+                $('#FirstName').val('');
+                $('#LastName').val('');
+                $('#BirthDate').val('');
+                $('#Gender').val('');
+                $('#MaritalStatus').val('');
+                $('#PhoneNumber').val('');
+                $('#Email').val('');
+                $('#HireDate').val('');
+                $('#DepartmentId').val('');
+                $('#PositionId').val('');
+                $('#ShiftId').val('');
+                $('#City').val('');
+                $('#District').val('');
+                $('#PostalCode').val('');
+                $('#AddressLine').val('');
+
+                clearValidation();
+                $('#employeeModalLabel').text('Yeni Personel');
+                loadDepartments();
+                loadPositions();
+                loadShifts();
+                loadCities();
+                fillSelect($('#District'), [], null, function (x) { return x.name; });
+
+                var modal = new bootstrap.Modal(document.getElementById('employeeModal'));
+                modal.show();
+            }
+
+            $('#btnAdd').on('click', function () {
+                if (noPermission) return;
+                openCreateModal();
+            });
+
+            $('#employeesTable').on('click', '.btn-edit', function () {
+                if (noPermission) return;
+
+                var id = $(this).data('id');
+                clearValidation();
+
+                $.get('@Url.Action("Get", "Employees")', { id: id })
+                    .done(function (res) {
+                        if (!res) return;
+
+                        $('#EmployeeId').val(res.id);
+                        $('#EmployeeNumber').val(res.employeeNumber);
+                        $('#IdentityNo').val(res.identityNo);
+                        $('#FirstName').val(res.firstName);
+                        $('#LastName').val(res.lastName);
+                        $('#BirthDate').val(res.birthDate ? res.birthDate.substring(0, 10) : '');
+                        $('#Gender').val(res.gender || '');
+                        $('#MaritalStatus').val(res.maritalStatus || '');
+                        $('#PhoneNumber').val(res.phoneNumber || '');
+                        $('#Email').val(res.email || '');
+                        $('#PostalCode').val(res.postalCode || '');
+                        $('#AddressLine').val(res.addressLine || '');
+
+                        if (res.hireDate) {
+                            var hd = new Date(res.hireDate);
+                            $('#HireDate').val(hd.toISOString().substring(0, 10));
+                        } else {
+                            $('#HireDate').val('');
+                        }
+
+                        var cityName = res.city || '';
+                        var districtName = res.district || '';
+
+                        $('#employeeModalLabel').text('Personel Düzenle');
+                        loadDepartments(res.departmentId);
+                        loadPositions(res.positionId);
+                        loadShifts(res.shiftId || res.ShiftId);
+
+                        loadCities(cityName).done(function () {
+                            $('#City').val(cityName);
+                            loadDistricts(cityName, districtName);
+                        });
+
+                        var modal = new bootstrap.Modal(document.getElementById('employeeModal'));
+                        modal.show();
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Personel bilgileri alınırken hata oluştu.');
+                    });
+            });
+
+            var deleteModalEl = document.getElementById('deleteEmployeeModal');
+            var deleteModal = new bootstrap.Modal(deleteModalEl);
+
+            $('#employeesTable').on('click', '.btn-delete', function () {
+                if (noPermission) return;
+
+                var id = $(this).data('id');
+                $('#DeleteEmployeeId').val(id);
+                deleteModal.show();
+            });
+
+            $('#btnConfirmDelete').on('click', function () {
+                if (noPermission) return;
+
+                var id = $('#DeleteEmployeeId').val();
+
+                $.post('@Url.Action("Delete", "Employees")', { id: id })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            deleteModal.hide();
+                            table.ajax.reload(null, false);
+                            showPopup('Silme işlemi tamamlandı.', 'success');
+                        } else {
+                            showPopup((res && res.message) || 'Silme işlemi başarısız.', 'warning');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Silme işlemi sırasında hata oluştu.');
+                    });
+            });
+
+            $('#btnSaveEmployee').on('click', function () {
+                if (noPermission) return;
+
+                clearValidation();
+
+                var id = $('#EmployeeId').val();
+                var employeeNumber = $('#EmployeeNumber').val().trim();
+                var identityNo = $('#IdentityNo').val().trim();
+                var firstName = $('#FirstName').val().trim();
+                var lastName = $('#LastName').val().trim();
+                var birthDate = $('#BirthDate').val();
+                var gender = $('#Gender').val();
+                var maritalStatus = $('#MaritalStatus').val();
+                var phoneNumber = $('#PhoneNumber').val().trim();
+                var email = $('#Email').val().trim();
+                var hireDate = $('#HireDate').val();
+                var departmentId = $('#DepartmentId').val();
+                var positionId = $('#PositionId').val();
+                var ShiftId = $('#ShiftId').val();
+                var city = $('#City').val();
+                var district = $('#District').val();
+                var postalCode = $('#PostalCode').val().trim();
+                var addressLine = $('#AddressLine').val().trim();
+
+                var hasError = false;
+
+                if (!employeeNumber) { showError('EmployeeNumber', 'Sicil numarası zorunludur.'); hasError = true; }
+                if (!identityNo) { showError('IdentityNo', 'TC kimlik numarası zorunludur.'); hasError = true; }
+                if (!firstName) { showError('FirstName', 'Ad zorunludur.'); hasError = true; }
+                if (!lastName) { showError('LastName', 'Soyad zorunludur.'); hasError = true; }
+                if (!birthDate) { showError('BirthDate', 'Doğum tarihi zorunludur.'); hasError = true; }
+                if (!gender) { showError('Gender', 'Cinsiyet zorunludur.'); hasError = true; }
+                if (!maritalStatus) { showError('MaritalStatus', 'Medeni durum zorunludur.'); hasError = true; }
+                if (!phoneNumber) { showError('PhoneNumber', 'Telefon numarası zorunludur.'); hasError = true; }
+                if (!hireDate) { showError('HireDate', 'İşe giriş tarihi zorunludur.'); hasError = true; }
+                if (!departmentId) { showError('DepartmentId', 'Departman seçimi zorunludur.'); hasError = true; }
+                if (!city) { showError('City', 'İl seçimi zorunludur.'); hasError = true; }
+                if (!district) { showError('District', 'İlçe seçimi zorunludur.'); hasError = true; }
+                if (!addressLine) { showError('AddressLine', 'Adres bilgisi zorunludur.'); hasError = true; }
+
+                if (hasError) return;
+
+                var url = id
+                    ? '@Url.Action("Update", "Employees")'
+                    : '@Url.Action("Create", "Employees")';
+
+                var payload = {
+                    id: id,
+                    employeeNumber: employeeNumber,
+                    identityNo: identityNo,
+                    firstName: firstName,
+                    lastName: lastName,
+                    birthDate: birthDate || null,
+                    gender: gender || null,
+                    maritalStatus: maritalStatus || null,
+                    phoneNumber: phoneNumber || null,
+                    email: email || null,
+                    hireDate: hireDate,
+                    departmentId: departmentId,
+                    positionId: positionId || null,
+                    ShiftId: ShiftId || null,
+                    city: city || null,
+                    district: district || null,
+                    postalCode: postalCode || null,
+                    addressLine: addressLine || null
+                };
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: payload
+                })
+                    .done(function (res) {
+                        if (res && res.success) {
+                            var modalEl = document.getElementById('employeeModal');
+                            var modal = bootstrap.Modal.getInstance(modalEl);
+                            modal.hide();
+                            table.ajax.reload(null, false);
+                            showPopup('Kayıt başarıyla kaydedildi.', 'success');
+                        } else {
+                            showPopup((res && res.message) || 'Kaydetme işlemi başarısız.', 'warning');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        handleFail(xhr, 'Kaydetme işlemi sırasında hata oluştu.');
+                    });
+            });
+        });
+    </script>
+}
